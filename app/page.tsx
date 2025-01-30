@@ -1,101 +1,168 @@
-import Image from "next/image";
+'use client';
+import { useState, useEffect } from 'react';
+import { fetchEvents } from '@/services/events';
+import EventCard from '@/components/EventCard';
+import { ParisEvent } from '@/types/Event';
+
+const PRICE_TYPES = ['Gratuit', 'Payant', 'Tarif réduit'];
+const COMMON_TAGS = ['Concert', 'Exposition', 'Théâtre', 'Sport', 'Enfants'];
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [events, setEvents] = useState<ParisEvent[]>([]);
+  const [search, setSearch] = useState('');
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
+  const [selectedPrices, setSelectedPrices] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoading(true);
+        const response = await fetchEvents({
+          search,
+          dateStart,
+          dateEnd,
+          priceTypes: selectedPrices,
+          tags: selectedTags,
+        });
+        setEvents(response.records);
+      } catch (error) {
+        console.error('Error loading events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const debounce = setTimeout(loadEvents, 300);
+    return () => clearTimeout(debounce);
+  }, [search, dateStart, dateEnd, selectedPrices, selectedTags]);
+
+  const handlePriceToggle = (price: string) => {
+    setSelectedPrices(prev =>
+      prev.includes(price)
+        ? prev.filter(p => p !== price)
+        : [...prev, price]
+    );
+  };
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  const resetFilters = () => {
+    setDateStart('');
+    setDateEnd('');
+    setSelectedPrices([]);
+    setSelectedTags([]);
+  };
+
+  return (
+    <div className="min-h-screen p-8">
+      <header className="max-w-4xl mx-auto mb-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Que faire à Paris ?</h1>
+          {(dateStart || dateEnd || selectedPrices.length > 0 || selectedTags.length > 0) && (
+            <button
+              onClick={resetFilters}
+              className="px-4 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-100 
+                dark:border-gray-600 dark:hover:bg-gray-700 transition-colors"
+            >
+              Réinitialiser les filtres
+            </button>
+          )}
         </div>
+
+        <div className="space-y-4">
+          <input
+            type="search"
+            placeholder="Rechercher un événement..."
+            className="w-full p-3 rounded-lg border dark:bg-gray-800 dark:border-gray-700"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Date de début</label>
+              <input
+                type="date"
+                className="w-full p-3 rounded-lg border dark:bg-gray-800 dark:border-gray-700"
+                value={dateStart}
+                onChange={(e) => setDateStart(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Date de fin</label>
+              <input
+                type="date"
+                className="w-full p-3 rounded-lg border dark:bg-gray-800 dark:border-gray-700"
+                value={dateEnd}
+                onChange={(e) => setDateEnd(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Tarifs</label>
+            <div className="flex flex-wrap gap-2">
+              {PRICE_TYPES.map((price) => (
+                <button
+                  key={price}
+                  onClick={() => handlePriceToggle(price)}
+                  className={`px-3 py-1 rounded-full text-sm border transition-colors
+                    ${selectedPrices.includes(price)
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                >
+                  {price}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Catégories</label>
+            <div className="flex flex-wrap gap-2">
+              {COMMON_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => handleTagToggle(tag)}
+                  className={`px-3 py-1 rounded-full text-sm border transition-colors
+                    ${selectedTags.includes(tag)
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto">
+        {loading ? (
+          <div className="text-center">Chargement...</div>
+        ) : events.length === 0 ? (
+          <div className="text-center text-gray-600 dark:text-gray-400">
+            Aucun événement trouvé
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {events.map((event) => (
+              <EventCard key={event.recordid} event={event} />
+            ))}
+          </div>
+        )}
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
